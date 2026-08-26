@@ -2,6 +2,7 @@ import { prisma } from "@/lib/prisma";
 import { sendWhatsAppMessage, isWhatsAppConfigured } from "@/lib/whatsapp";
 import { sendEmail, isEmailConfigured } from "@/lib/email";
 import { DEFAULT_TEMPLATES, renderTemplate, type TemplateKey } from "@/lib/templates";
+import { decryptSecret } from "@/lib/secrets";
 
 export type SendNotificationInput = {
   agencyId: string;
@@ -18,6 +19,9 @@ export async function isChannelConfigured(channel: "WHATSAPP" | "EMAIL") {
 }
 
 export async function sendNotification(input: SendNotificationInput) {
+  const agency = await prisma.agency.findUnique({ where: { id: input.agencyId }, select: { plan: true, whatsappAccessTokenEnc: true, whatsappPhoneNumberId: true, emailApiKeyEnc: true, emailFrom: true } });
+  const whatsappConfig = { accessToken: decryptSecret(agency?.whatsappAccessTokenEnc ?? null), phoneNumberId: agency?.whatsappPhoneNumberId };
+  const emailConfig = { apiKey: decryptSecret(agency?.emailApiKeyEnc ?? null), from: agency?.emailFrom };
   const override = await prisma.messageTemplate.findUnique({
     where: {
       agencyId_key_channel: {
@@ -29,7 +33,7 @@ export async function sendNotification(input: SendNotificationInput) {
   });
 
   const template = override ?? DEFAULT_TEMPLATES[input.templateKey];
-  const renderedBody = renderTemplate(template.body, input.variables);
+  const renderedBody = `${renderTemplate(template.body, input.variables)}\n\nPowered by TrailPilot™`;
   const renderedSubject = template.subject
     ? renderTemplate(template.subject, input.variables)
     : undefined;
@@ -38,16 +42,17 @@ export async function sendNotification(input: SendNotificationInput) {
   let errorMessage: string | undefined;
 
   if (input.channel === "WHATSAPP") {
-    if (isWhatsAppConfigured()) {
-      const result = await sendWhatsAppMessage(input.recipient, renderedBody);
+    if (isWhatsAppConfigured(whatsappConfig)) {
+      const result = await sendWhatsAppMessage(input.recipient, renderedBody, whatsappConfig);
       status = result.sent ? "SENT" : "FAILED";
       errorMessage = result.error;
     } else {
       console.log(`[TrailOS][WhatsApp:logged-only] to ${input.recipient}: ${renderedBody}`);
     }
   } else {
-    if (isEmailConfigured()) {
-      const result = await sendEmail(input.recipient, renderedSubject ?? "Message from your agency", renderedBody);
+    if (isEmailConfigured(emailConfig)) {
+      const emailBody = renderedBody.replaceAll("\n", "<br />");
+      const result = await sendEmail(input.recipient, renderedSubject ?? "Message from your agency", emailBody, emailConfig);
       status = result.sent ? "SENT" : "FAILED";
       errorMessage = result.error;
     } else {
@@ -89,6 +94,7 @@ export async function triggerBookingAutomation(bookingId: string, event: Booking
         payments: { select: { amount: true, direction: true } },
       },
     });
+    if (booking?.agency && booking.agency.plan !== "PREMIUM") return;
     if (!booking?.customer.phone) return;
 
     const variables = {

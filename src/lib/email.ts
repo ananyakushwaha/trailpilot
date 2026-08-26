@@ -1,13 +1,15 @@
-export function isEmailConfigured() {
-  return Boolean(process.env.RESEND_API_KEY);
+export type EmailConfig = { apiKey?: string | null; from?: string | null };
+
+export function isEmailConfigured(config?: EmailConfig) {
+  return Boolean(config?.apiKey ?? process.env.RESEND_API_KEY);
 }
 
 export type SendResult = { sent: boolean; error?: string };
 
 // Sends email via the Resend REST API. Falls back to a no-op (caller logs
 // it) when no API key is configured.
-export async function sendEmail(to: string, subject: string, html: string): Promise<SendResult> {
-  const apiKey = process.env.RESEND_API_KEY;
+export async function sendEmail(to: string, subject: string, html: string, config?: EmailConfig): Promise<SendResult> {
+  const apiKey = config?.apiKey ?? process.env.RESEND_API_KEY;
   if (!apiKey) {
     return { sent: false, error: "Email is not configured" };
   }
@@ -20,7 +22,7 @@ export async function sendEmail(to: string, subject: string, html: string): Prom
         Authorization: `Bearer ${apiKey}`,
       },
       body: JSON.stringify({
-        from: process.env.RESEND_FROM_EMAIL || "TrailOS <onboarding@resend.dev>",
+        from: config?.from || process.env.RESEND_FROM_EMAIL || "TrailOS <onboarding@resend.dev>",
         to,
         subject,
         html,

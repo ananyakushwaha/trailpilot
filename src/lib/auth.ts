@@ -2,6 +2,7 @@ import bcrypt from "bcryptjs";
 import { SignJWT, jwtVerify } from "jose";
 import { cookies } from "next/headers";
 import type { UserRole } from "@/generated/prisma/client";
+import { prisma } from "@/lib/prisma";
 
 const SESSION_COOKIE = "trailos_session";
 const SESSION_DURATION_SECONDS = 60 * 60 * 24 * 7; // 7 days
@@ -85,6 +86,12 @@ export function requireRole(session: SessionPayload, allowedRoles: UserRole[]) {
   if (!allowedRoles.includes(session.role)) {
     throw new AuthError("Not authorized for this action", 403);
   }
+}
+
+export async function requirePremium(session: SessionPayload) {
+  if (session.role === "SUPER_ADMIN") return;
+  const agency = await prisma.agency.findUnique({ where: { id: session.agencyId }, select: { plan: true } });
+  if (agency?.plan !== "PREMIUM") throw new AuthError("This feature is available on the Premium plan", 402);
 }
 
 export class AuthError extends Error {
