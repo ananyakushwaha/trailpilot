@@ -1,0 +1,441 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum UserRole {
+  SUPER_ADMIN
+  AGENCY_OWNER
+  SALES_EXECUTIVE
+  OPERATIONS_EXECUTIVE
+  HOTEL_PARTNER
+  DRIVER_GUIDE
+  CUSTOMER_PORTAL_USER
+}
+
+enum SubscriptionPlan {
+  FREE
+  PREMIUM
+}
+
+enum LeadStatus {
+  NEW
+  CONTACTED
+  PROPOSAL_SENT
+  NEGOTIATING
+  WON
+  LOST
+}
+
+enum LeadSource {
+  INSTAGRAM
+  REFERRAL
+  WEBSITE
+  WALK_IN
+  WHATSAPP
+  OTHER
+}
+
+enum ItineraryStatus {
+  DRAFT
+  FINAL
+}
+
+enum BookingStatus {
+  DRAFT
+  QUOTATION_SENT
+  CONFIRMED
+  ADVANCE_RECEIVED
+  VENDORS_ASSIGNED
+  ACTIVE_TRIP
+  COMPLETED
+  CANCELLED
+  REFUNDED
+}
+
+enum VendorCategory {
+  HOTEL
+  HOMESTAY
+  DRIVER
+  GUIDE
+  ACTIVITY_PROVIDER
+  TRANSPORT
+  LOCAL_COORDINATOR
+}
+
+enum PaymentDirection {
+  CUSTOMER_IN
+  VENDOR_OUT
+}
+
+enum PaymentMethod {
+  CASH
+  UPI
+  BANK_TRANSFER
+  RAZORPAY
+  OTHER
+}
+
+enum NotificationChannel {
+  WHATSAPP
+  EMAIL
+}
+
+enum NotificationStatus {
+  SENT
+  FAILED
+  LOGGED_ONLY
+}
+
+// Travel agency tenant. Every business-level table is scoped to an agency
+// via agencyId so one agency can never read another agency's data.
+model Agency {
+  id              String   @id @default(cuid())
+  name            String
+  email           String   @unique
+  phone           String?
+  address         String?
+  city            String?
+  logoUrl         String?
+  googleReviewUrl String?
+  whatsappAccessTokenEnc String?
+  whatsappPhoneNumberId String?
+  emailApiKeyEnc String?
+  emailFrom String?
+  plan            SubscriptionPlan @default(FREE)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  users            User[]
+  leads            Lead[]
+  customers        Customer[]
+  vendors          Vendor[]
+  itineraries      Itinerary[]
+  bookings         Booking[]
+  payments         Payment[]
+  feedback         Feedback[]
+  notificationLogs NotificationLog[]
+  messageTemplates MessageTemplate[]
+
+  @@map("agencies")
+}
+
+model User {
+  id           String   @id @default(cuid())
+  agencyId     String
+  agency       Agency   @relation(fields: [agencyId], references: [id], onDelete: Cascade)
+  name         String
+  email        String   @unique
+  passwordHash String
+  role         UserRole
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  assignedLeads      Lead[]      @relation("AssignedSalesExecutive")
+  createdItineraries Itinerary[] @relation("ItineraryCreatedBy")
+
+  @@index([agencyId])
+  @@map("users")
+}
+
+model Customer {
+  id                  String   @id @default(cuid())
+  agencyId            String
+  agency              Agency   @relation(fields: [agencyId], references: [id], onDelete: Cascade)
+  fullName            String
+  phone               String
+  email               String?
+  address             String?
+  govIdType           String?
+  govIdNumber         String?
+  emergencyContact    String?
+  foodPreference      String?
+  hotelPreference     String?
+  transportPreference String?
+  medicalNotes        String?
+  internalNotes       String?
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  leads       Lead[]
+  itineraries Itinerary[]
+  bookings    Booking[]
+  feedback    Feedback[]
+
+  @@index([agencyId])
+  @@map("customers")
+}
+
+model Lead {
+  id                   String     @id @default(cuid())
+  agencyId             String
+  agency               Agency     @relation(fields: [agencyId], references: [id], onDelete: Cascade)
+  customerName         String
+  phone                String
+  email                String?
+  destination          String?
+  travelStartDate      DateTime?
+  travelEndDate        DateTime?
+  adults               Int        @default(1)
+  children             Int        @default(0)
+  budgetRange          String?
+  hotelPreference      String?
+  transportRequirement String?
+  source               LeadSource @default(OTHER)
+  status               LeadStatus @default(NEW)
+  assignedToId         String?
+  assignedTo           User?      @relation("AssignedSalesExecutive", fields: [assignedToId], references: [id], onDelete: SetNull)
+  nextFollowUpDate     DateTime?
+  internalNotes        String?
+  lostReason           String?
+  convertedCustomerId  String?
+  convertedCustomer    Customer?  @relation(fields: [convertedCustomerId], references: [id], onDelete: SetNull)
+  createdAt            DateTime   @default(now())
+  updatedAt            DateTime   @updatedAt
+
+  itineraries Itinerary[]
+  bookings    Booking[]
+
+  @@index([agencyId])
+  @@index([agencyId, status])
+  @@index([agencyId, nextFollowUpDate])
+  @@map("leads")
+}
+
+// ---------------------------------------------------------------------------
+// Month 2: Itinerary builder, bookings, vendors, payments
+// ---------------------------------------------------------------------------
+
+model Itinerary {
+  id              String          @id @default(cuid())
+  agencyId        String
+  agency          Agency          @relation(fields: [agencyId], references: [id], onDelete: Cascade)
+  leadId          String?
+  lead            Lead?           @relation(fields: [leadId], references: [id], onDelete: SetNull)
+  customerId      String?
+  customer        Customer?       @relation(fields: [customerId], references: [id], onDelete: SetNull)
+  title           String
+  destination     String
+  numDays         Int
+  numNights       Int
+  travelStartDate DateTime?
+  travelEndDate   DateTime?
+  travellerCount  Int             @default(1)
+  budgetCategory  String?
+  hotelCategory   String?
+  tripType        String?
+  interests       String?
+  transportMode   String?
+  specialNotes    String?
+  isTemplate      Boolean         @default(false)
+  status          ItineraryStatus @default(DRAFT)
+  createdById     String?
+  createdBy       User?           @relation("ItineraryCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+
+  days     ItineraryDay[]
+  bookings Booking[]
+
+  @@index([agencyId])
+  @@index([agencyId, isTemplate])
+  @@map("itineraries")
+}
+
+model ItineraryDay {
+  id                    String    @id @default(cuid())
+  itineraryId           String
+  itinerary             Itinerary @relation(fields: [itineraryId], references: [id], onDelete: Cascade)
+  dayNumber             Int
+  title                 String
+  activities            String
+  pickupDropNotes       String?
+  hotelStay             String?
+  inclusions            String?
+  exclusions            String?
+  importantInstructions String?
+
+  @@index([itineraryId])
+  @@map("itinerary_days")
+}
+
+model Vendor {
+  id                String         @id @default(cuid())
+  agencyId          String
+  agency            Agency         @relation(fields: [agencyId], references: [id], onDelete: Cascade)
+  name              String
+  category          VendorCategory
+  contactPerson     String?
+  phone             String?
+  email             String?
+  location          String?
+  priceRangeNotes   String?
+  gstDetails        String?
+  rating            Int?
+  paymentTerms      String?
+  availabilityNotes String?
+  internalComments  String?
+  createdAt         DateTime       @default(now())
+  updatedAt         DateTime       @updatedAt
+
+  bookingVendors BookingVendor[]
+
+  @@index([agencyId])
+  @@index([agencyId, category])
+  @@map("vendors")
+}
+
+model Booking {
+  id            String        @id @default(cuid())
+  agencyId      String
+  agency        Agency        @relation(fields: [agencyId], references: [id], onDelete: Cascade)
+  customerId    String
+  customer      Customer      @relation(fields: [customerId], references: [id], onDelete: Restrict)
+  leadId        String?
+  lead          Lead?         @relation(fields: [leadId], references: [id], onDelete: SetNull)
+  itineraryId   String?
+  itinerary     Itinerary?    @relation(fields: [itineraryId], references: [id], onDelete: SetNull)
+  destination   String
+  startDate     DateTime
+  endDate       DateTime
+  packageAmount Float
+  status        BookingStatus @default(DRAFT)
+  internalNotes String?
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+
+  vendors   BookingVendor[]
+  payments  Payment[]
+  checklist BookingChecklistItem[]
+  feedback  Feedback?
+
+  @@index([agencyId])
+  @@index([agencyId, status])
+  @@index([agencyId, startDate])
+  @@map("bookings")
+}
+
+model BookingVendor {
+  id          String   @id @default(cuid())
+  bookingId   String
+  booking     Booking  @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  vendorId    String
+  vendor      Vendor   @relation(fields: [vendorId], references: [id], onDelete: Restrict)
+  agreedCost  Float?
+  advancePaid Float    @default(0)
+  notes       String?
+  createdAt   DateTime @default(now())
+
+  payments Payment[]
+
+  @@index([bookingId])
+  @@index([vendorId])
+  @@map("booking_vendors")
+}
+
+model BookingChecklistItem {
+  id          String    @id @default(cuid())
+  bookingId   String
+  booking     Booking   @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  label       String
+  completed   Boolean   @default(false)
+  completedAt DateTime?
+  createdAt   DateTime  @default(now())
+
+  @@index([bookingId])
+  @@map("booking_checklist_items")
+}
+
+model Payment {
+  id              String           @id @default(cuid())
+  agencyId        String
+  agency          Agency           @relation(fields: [agencyId], references: [id], onDelete: Cascade)
+  bookingId       String
+  booking         Booking          @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  bookingVendorId String?
+  bookingVendor   BookingVendor?   @relation(fields: [bookingVendorId], references: [id], onDelete: SetNull)
+  direction       PaymentDirection
+  amount          Float
+  method          PaymentMethod    @default(CASH)
+  reference       String?
+  note            String?
+  receiptNumber   String?
+  paidAt          DateTime         @default(now())
+  createdAt       DateTime         @default(now())
+
+  @@index([agencyId])
+  @@index([bookingId])
+  @@map("payments")
+}
+
+model Feedback {
+  id                String   @id @default(cuid())
+  agencyId          String
+  agency            Agency   @relation(fields: [agencyId], references: [id], onDelete: Cascade)
+  bookingId         String   @unique
+  booking           Booking  @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  customerId        String
+  customer          Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  overallRating     Int
+  hotelRating       Int?
+  driverRating      Int?
+  guideRating       Int?
+  activityRating    Int?
+  cleanlinessRating Int?
+  punctualityRating Int?
+  staffRating       Int?
+  whatWentWell      String?
+  whatCanImprove    String?
+  wouldRecommend    Boolean?
+  reviewRequested   Boolean  @default(false)
+  createdAt         DateTime @default(now())
+
+  @@index([agencyId])
+  @@map("feedback")
+}
+
+// ---------------------------------------------------------------------------
+// Month 3: Notification engine
+// ---------------------------------------------------------------------------
+
+model MessageTemplate {
+  id        String              @id @default(cuid())
+  agencyId  String
+  agency    Agency              @relation(fields: [agencyId], references: [id], onDelete: Cascade)
+  key       String
+  channel   NotificationChannel
+  subject   String?
+  body      String
+  updatedAt DateTime            @updatedAt
+  createdAt DateTime            @default(now())
+
+  @@unique([agencyId, key, channel])
+  @@map("message_templates")
+}
+
+model NotificationLog {
+  id           String              @id @default(cuid())
+  agencyId     String
+  agency       Agency              @relation(fields: [agencyId], references: [id], onDelete: Cascade)
+  bookingId    String?
+  leadId       String?
+  channel      NotificationChannel
+  templateKey  String
+  recipient    String
+  status       NotificationStatus
+  renderedBody String?
+  errorMessage String?
+  createdAt    DateTime            @default(now())
+
+  @@index([agencyId])
+  @@index([agencyId, bookingId])
+  @@map("notification_logs")
+}
