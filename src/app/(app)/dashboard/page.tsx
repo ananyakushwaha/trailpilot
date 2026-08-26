@@ -6,242 +6,33 @@ import { LeadStatusBadge } from "@/components/StatusBadge";
 import { formatDate } from "@/lib/format";
 
 type DashboardData = {
-  totalLeadsThisMonth: number;
-  newLeadsToday: number;
-  leadsPendingFollowUp: number;
-  wonLeadsThisMonth: number;
-  totalCustomers: number;
-  confirmedBookingsThisMonth: number;
-  paymentsPendingFromCustomers: number;
-  vendorPaymentsPending: number;
-  revenueCollectedThisMonth: number;
-  averageCustomerRating: number | null;
-  upcomingTrips: {
-    id: string;
-    destination: string;
-    startDate: string;
-    customer: { fullName: string };
-  }[];
-  recentLeads: {
-    id: string;
-    customerName: string;
-    destination: string | null;
-    status: string;
-    createdAt: string;
-  }[];
-  recentFeedback: {
-    id: string;
-    customerName: string;
-    destination: string;
-    overallRating: number;
-    createdAt: string;
-  }[];
+  totalLeadsThisMonth: number; newLeadsToday: number; leadsPendingFollowUp: number;
+  wonLeadsThisMonth: number; totalCustomers: number; confirmedBookingsThisMonth: number; activeTrips: number;
+  paymentsPendingFromCustomers: number; vendorPaymentsPending: number;
+  revenueCollectedThisMonth: number; averageCustomerRating: number | null;
+  upcomingTrips: { id: string; destination: string; startDate: string; customer: { fullName: string } }[];
+  recentLeads: { id: string; customerName: string; destination: string | null; status: string; createdAt: string }[];
+  recentFeedback: { id: string; customerName: string; destination: string; overallRating: number; createdAt: string }[];
 };
 
 const fetcher = (url: string) => fetch(url).then((res) => res.json());
 
 export default function DashboardPage() {
   const { data, isLoading } = useSWR<DashboardData>("/api/dashboard", fetcher);
-
-  return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-xl font-semibold text-slate-900">Dashboard</h1>
-        <p className="text-sm text-slate-500">What needs your attention today.</p>
-      </div>
-
-      <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-5">
-        <StatCard label="New leads today" value={data?.newLeadsToday} loading={isLoading} />
-        <StatCard
-          label="Total leads this month"
-          value={data?.totalLeadsThisMonth}
-          loading={isLoading}
-        />
-        <StatCard
-          label="Pending follow-ups"
-          value={data?.leadsPendingFollowUp}
-          loading={isLoading}
-          href="/leads?followUp=overdue"
-          highlight
-        />
-        <StatCard label="Won this month" value={data?.wonLeadsThisMonth} loading={isLoading} />
-        <StatCard
-          label="Confirmed bookings this month"
-          value={data?.confirmedBookingsThisMonth}
-          loading={isLoading}
-          href="/bookings"
-        />
-        <StatCard
-          label="Payments pending"
-          value={data?.paymentsPendingFromCustomers}
-          loading={isLoading}
-          href="/bookings"
-          currency
-          highlight
-        />
-        <StatCard
-          label="Vendor payments pending"
-          value={data?.vendorPaymentsPending}
-          loading={isLoading}
-          href="/bookings"
-          currency
-        />
-        <StatCard
-          label="Revenue collected this month"
-          value={data?.revenueCollectedThisMonth}
-          loading={isLoading}
-          currency
-        />
-        <StatCard label="Total customers" value={data?.totalCustomers} loading={isLoading} />
-        <StatCard
-          label="Average customer rating"
-          value={data?.averageCustomerRating ?? undefined}
-          loading={isLoading}
-          href="/analytics"
-          suffix="/5"
-        />
-      </div>
-
-      <div className="grid gap-4 lg:grid-cols-2">
-        <div className="card">
-          <div className="mb-4 flex items-center justify-between">
-            <h2 className="text-sm font-semibold text-slate-900">Recent leads</h2>
-            <Link href="/leads" className="text-sm font-medium text-indigo-600 hover:text-indigo-500">
-              View all
-            </Link>
-          </div>
-
-          {isLoading && <p className="text-sm text-slate-500">Loading...</p>}
-          {!isLoading && data?.recentLeads.length === 0 && (
-            <p className="text-sm text-slate-500">
-              No leads yet.{" "}
-              <Link href="/leads/new" className="font-medium text-indigo-600">
-                Add your first lead
-              </Link>
-              .
-            </p>
-          )}
-
-          <ul className="divide-y divide-slate-100">
-            {data?.recentLeads.map((lead) => (
-              <li key={lead.id} className="flex items-center justify-between py-3">
-                <div>
-                  <Link
-                    href={`/leads/${lead.id}`}
-                    className="text-sm font-medium text-slate-900 hover:text-indigo-600"
-                  >
-                    {lead.customerName}
-                  </Link>
-                  <p className="text-xs text-slate-500">
-                    {lead.destination ?? "No destination"} · {formatDate(lead.createdAt)}
-                  </p>
-                </div>
-                <LeadStatusBadge status={lead.status} />
-              </li>
-            ))}
-          </ul>
-        </div>
-
-        <div className="card">
-          <div className="mb-4 flex items-center justify-between">
-            <h2 className="text-sm font-semibold text-slate-900">Upcoming trips (7 days)</h2>
-            <Link href="/bookings" className="text-sm font-medium text-indigo-600 hover:text-indigo-500">
-              View all
-            </Link>
-          </div>
-          {!isLoading && data?.upcomingTrips.length === 0 && (
-            <p className="text-sm text-slate-500">No trips starting in the next 7 days.</p>
-          )}
-          <ul className="divide-y divide-slate-100">
-            {data?.upcomingTrips.map((trip) => (
-              <li key={trip.id} className="flex items-center justify-between py-3">
-                <div>
-                  <Link
-                    href={`/bookings/${trip.id}`}
-                    className="text-sm font-medium text-slate-900 hover:text-indigo-600"
-                  >
-                    {trip.customer.fullName}
-                  </Link>
-                  <p className="text-xs text-slate-500">{trip.destination}</p>
-                </div>
-                <span className="text-xs text-slate-500">{formatDate(trip.startDate)}</span>
-              </li>
-            ))}
-          </ul>
-        </div>
-      </div>
-
-      <div className="card">
-        <div className="mb-4 flex items-center justify-between">
-          <h2 className="text-sm font-semibold text-slate-900">Recent feedback and complaints</h2>
-          <Link href="/analytics" className="text-sm font-medium text-indigo-600 hover:text-indigo-500">
-            View analytics
-          </Link>
-        </div>
-        {!isLoading && data?.recentFeedback.length === 0 && (
-          <p className="text-sm text-slate-500">No feedback collected yet.</p>
-        )}
-        <ul className="divide-y divide-slate-100">
-          {data?.recentFeedback.map((f) => (
-            <li key={f.id} className="flex items-center justify-between py-3 text-sm">
-              <div>
-                <span className="font-medium text-slate-900">{f.customerName}</span>
-                <p className="text-xs text-slate-500">
-                  {f.destination} · {formatDate(f.createdAt)}
-                </p>
-              </div>
-              <span
-                className={`badge ${
-                  f.overallRating >= 4
-                    ? "bg-emerald-50 text-emerald-700"
-                    : f.overallRating === 3
-                      ? "bg-amber-50 text-amber-700"
-                      : "bg-red-50 text-red-700"
-                }`}
-              >
-                {f.overallRating}/5
-              </span>
-            </li>
-          ))}
-        </ul>
-      </div>
+  return <div className="space-y-6">
+    <div className="flex flex-wrap items-end justify-between gap-4"><div><p className="text-sm font-medium text-indigo-600">Travel operations workspace</p><h1 className="mt-1 text-2xl font-bold tracking-tight text-slate-950">Welcome back! 👋</h1><p className="mt-1 text-sm text-slate-500">Here&apos;s what needs your team&apos;s attention today.</p></div><div className="flex gap-2"><Link href="/leads/new" className="btn-secondary">+ New lead</Link><Link href="/bookings/new" className="btn-primary">+ New booking</Link></div></div>
+    <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-5"><StatCard label="New leads today" value={data?.newLeadsToday} icon="👥" tone="emerald" loading={isLoading} href="/leads" /><StatCard label="Active trips" value={data?.activeTrips} icon="🧳" tone="blue" loading={isLoading} href="/bookings" /><StatCard label="Bookings confirmed" value={data?.confirmedBookingsThisMonth} icon="🎟️" tone="amber" loading={isLoading} href="/bookings" /><StatCard label="Revenue this month" value={data?.revenueCollectedThisMonth} icon="📊" tone="violet" loading={isLoading} currency /><StatCard label="Pending payments" value={data?.paymentsPendingFromCustomers} icon="💬" tone="rose" loading={isLoading} currency highlight href="/bookings" /></div>
+    <div className="grid gap-5 xl:grid-cols-[1.2fr_1fr_0.9fr]">
+      <section className="card"><SectionHeading title="Recent leads" href="/leads" />{data?.recentLeads.length === 0 && <EmptyState text="No leads yet." href="/leads/new" action="Add your first lead" />}<ul className="divide-y divide-slate-100">{data?.recentLeads.map((lead) => <li key={lead.id} className="flex items-center justify-between gap-3 py-3"><div className="min-w-0"><Link href={`/leads/${lead.id}`} className="font-medium text-slate-900 hover:text-indigo-600">{lead.customerName}</Link><p className="truncate text-xs text-slate-500">{lead.destination ?? "Destination not set"} · {formatDate(lead.createdAt)}</p></div><LeadStatusBadge status={lead.status} /></li>)}</ul></section>
+      <section className="card"><SectionHeading title="Upcoming trips" subtitle="Next 7 days" href="/bookings" />{data?.upcomingTrips.length === 0 && <EmptyState text="No trips starting soon." />}<ul className="space-y-3">{data?.upcomingTrips.map((trip) => <li key={trip.id} className="flex items-center gap-3 rounded-lg bg-slate-50 p-3"><div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-white text-lg shadow-sm">🗺️</div><div className="min-w-0"><Link href={`/bookings/${trip.id}`} className="font-medium text-slate-900 hover:text-indigo-600">{trip.customer.fullName}</Link><p className="truncate text-xs text-slate-500">{trip.destination}</p></div><span className="ml-auto whitespace-nowrap text-xs font-medium text-indigo-600">{formatDate(trip.startDate)}</span></li>)}</ul></section>
+      <section className="card bg-slate-950 text-white"><div className="flex items-center justify-between"><div><p className="text-xs font-medium text-emerald-300">● WhatsApp automation</p><h2 className="mt-2 text-lg font-semibold">Keep customers informed</h2></div><span className="text-2xl">💬</span></div><p className="mt-3 text-sm leading-6 text-slate-300">Booking confirmations, payment reminders and feedback requests can be sent automatically from your team workflow.</p><Link href="/agency" className="mt-5 inline-flex w-full items-center justify-center rounded-md bg-white px-3 py-2 text-sm font-semibold text-slate-900 hover:bg-emerald-50">Manage message templates →</Link></section>
     </div>
-  );
+    <div className="grid gap-5 lg:grid-cols-[1.4fr_1fr]"><section className="card"><SectionHeading title="Action centre" subtitle="Work that needs attention" /><div className="grid gap-3 sm:grid-cols-2"><ActionLink href="/leads?followUp=overdue" icon="⏰" title="Pending follow-ups" value={`${data?.leadsPendingFollowUp ?? 0} leads need attention`} tone="amber" /><ActionLink href="/bookings" icon="₹" title="Customer payments" value={`₹${(data?.paymentsPendingFromCustomers ?? 0).toLocaleString("en-IN")} pending`} tone="rose" /><ActionLink href="/bookings" icon="🏨" title="Vendor payments" value={`₹${(data?.vendorPaymentsPending ?? 0).toLocaleString("en-IN")} pending`} tone="violet" /><ActionLink href="/analytics" icon="★" title="Customer satisfaction" value={`${data?.averageCustomerRating ?? "—"}/5 average rating`} tone="emerald" /></div></section><section className="card"><SectionHeading title="Recent feedback" href="/analytics" />{data?.recentFeedback.length === 0 && <EmptyState text="No feedback collected yet." />}<ul className="space-y-3">{data?.recentFeedback.map((feedback) => <li key={feedback.id} className="flex items-center justify-between border-b border-slate-100 pb-3 last:border-0 last:pb-0"><div><p className="text-sm font-medium text-slate-900">{feedback.customerName}</p><p className="text-xs text-slate-500">{feedback.destination}</p></div><span className={`badge ${feedback.overallRating >= 4 ? "bg-emerald-50 text-emerald-700" : feedback.overallRating === 3 ? "bg-amber-50 text-amber-700" : "bg-red-50 text-red-700"}`}>★ {feedback.overallRating}/5</span></li>)}</ul></section></div>
+  </div>;
 }
 
-function StatCard({
-  label,
-  value,
-  loading,
-  href,
-  highlight,
-  currency,
-  suffix,
-}: {
-  label: string;
-  value?: number;
-  loading: boolean;
-  href?: string;
-  highlight?: boolean;
-  currency?: boolean;
-  suffix?: string;
-}) {
-  const displayValue = loading
-    ? "—"
-    : currency
-      ? `₹${(value ?? 0).toLocaleString("en-IN")}`
-      : `${value ?? 0}${suffix ?? ""}`;
-
-  const content = (
-    <div
-      className={`card flex flex-col gap-1 transition-shadow ${
-        href ? "cursor-pointer hover:shadow-md" : ""
-      } ${highlight && (value ?? 0) > 0 ? "border-amber-300 bg-amber-50" : ""}`}
-    >
-      <span className="text-xs font-medium text-slate-500">{label}</span>
-      <span className="text-2xl font-semibold text-slate-900">{displayValue}</span>
-    </div>
-  );
-
-  return href ? <Link href={href}>{content}</Link> : content;
-}
+function SectionHeading({ title, subtitle, href }: { title: string; subtitle?: string; href?: string }) { return <div className="mb-4 flex items-center justify-between"><div><h2 className="text-sm font-semibold text-slate-950">{title}</h2>{subtitle && <p className="mt-1 text-xs text-slate-500">{subtitle}</p>}</div>{href && <Link href={href} className="text-xs font-semibold text-indigo-600 hover:text-indigo-500">View all →</Link>}</div>; }
+function EmptyState({ text, href, action }: { text: string; href?: string; action?: string }) { return <p className="py-4 text-sm text-slate-500">{text} {href && <Link href={href} className="font-medium text-indigo-600">{action}</Link>}</p>; }
+const TONE_CLASSES: Record<string, string> = { emerald: "bg-emerald-50 text-emerald-600", blue: "bg-blue-50 text-blue-600", amber: "bg-amber-50 text-amber-600", violet: "bg-violet-50 text-violet-600", rose: "bg-rose-50 text-rose-600" };
+function ActionLink({ href, icon, title, value, tone }: { href: string; icon: string; title: string; value: string; tone: string }) { return <Link href={href} className="flex items-center gap-3 rounded-lg border border-slate-100 p-3 transition hover:border-indigo-200 hover:bg-indigo-50/40"><span className={`flex h-9 w-9 items-center justify-center rounded-lg text-sm font-bold ${TONE_CLASSES[tone]}`}>{icon}</span><span><span className="block text-sm font-medium text-slate-900">{title}</span><span className="block text-xs text-slate-500">{value}</span></span><span className="ml-auto text-slate-300">→</span></Link>; }
+function StatCard({ label, value, loading, href, highlight, currency, icon, tone }: { label: string; value?: number; loading: boolean; href?: string; highlight?: boolean; currency?: boolean; icon: string; tone: string }) { const displayValue = loading ? "—" : currency ? `₹${(value ?? 0).toLocaleString("en-IN")}` : `${value ?? 0}`; const content = <div className={`card flex min-h-28 flex-col justify-between p-4 transition hover:-translate-y-0.5 hover:shadow-md ${highlight && (value ?? 0) > 0 ? "border-rose-200 bg-rose-50/50" : ""}`}><div className="flex items-start justify-between"><span className={`flex h-9 w-9 items-center justify-center rounded-full text-base ${TONE_CLASSES[tone]}`}>{icon}</span><span className="text-[10px] font-medium uppercase tracking-wide text-slate-400">This month</span></div><div><span className="block text-xs font-medium text-slate-500">{label}</span><span className="mt-1 block text-xl font-bold text-slate-950">{displayValue}</span></div></div>; return href ? <Link href={href}>{content}</Link> : content; }

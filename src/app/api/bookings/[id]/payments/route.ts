@@ -4,6 +4,7 @@ import { requireSession, requireRole, AuthError } from "@/lib/auth";
 import { handleApiError } from "@/lib/api-response";
 import { BOOKING_WRITE_ROLES } from "@/lib/roles";
 import { paymentInputSchema } from "@/lib/validation";
+import { triggerBookingAutomation } from "@/lib/notifications";
 
 function nextReceiptNumber(agencyId: string, count: number) {
   const year = new Date().getFullYear();
@@ -69,6 +70,10 @@ export async function POST(
         where: { id: body.bookingVendorId },
         data: { advancePaid: { increment: body.amount } },
       });
+    }
+
+    if (body.direction === "CUSTOMER_IN") {
+      await triggerBookingAutomation(id, "PAYMENT_RECEIVED");
     }
 
     return NextResponse.json({ payment }, { status: 201 });

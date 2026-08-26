@@ -71,3 +71,59 @@ export async function sendNotification(input: SendNotificationInput) {
 
   return log;
 }
+
+type BookingAutomationEvent = "CONFIRMED" | "PAYMENT_RECEIVED" | "COMPLETED";
+
+/**
+ * Sends the customer-facing messages that are safe to trigger from a booking
+ * event. The function is intentionally best-effort: a message failure must
+ * never make a booking or payment API request fail.
+ */
+export async function triggerBookingAutomation(bookingId: string, event: BookingAutomationEvent) {
+  try {
+    const booking = await prisma.booking.findUnique({
+      where: { id: bookingId },
+      include: {
+        customer: true,
+        agency: true,
+        payments: { select: { amount: true, direction: true } },
+      },
+    });
+    if (!booking?.customer.phone) return;
+
+    const variables = {
+      customer_name: booking.customer.fullName,
+      agency_name: booking.agency.name,
+      trip_destination: booking.destination,
+      start_date: booking.startDate.toLocaleDateString("en-IN"),
+      end_date: booking.endDate.toLocaleDateString("en-IN"),
+      balance_amount: `₹${Math.max(
+        booking.packageAmount - booking.payments
+          .filter((payment) => payment.direction === "CUSTOMER_IN")
+          .reduce((sum, payment) => sum + payment.amount, 0),
+        0,
+      ).toLocaleString("en-IN")}`,
+      feedback_link: `${process.env.APP_URL || ""}/feedback/${booking.id}`,
+      google_review_url: booking.agency.googleReviewUrl || "",
+    };
+
+    const templateKeys: Record<BookingAutomationEvent, TemplateKey[]> = {
+      CONFIRMED: ["BOOKING_CONFIRMATION"],
+      PAYMENT_RECEIVED: ["PAYMENT_REMINDER"],
+      COMPLETED: ["TRIP_COMPLETION", "FEEDBACK_REQUEST"],
+    };
+
+    for (const templateKey of templateKeys[event]) {
+      await sendNotification({
+        agencyId: booking.agencyId,
+        channel: "WHATSAPP",
+        templateKey,
+        recipient: booking.customer.phone,
+        variables,
+        bookingId: booking.id,
+      });
+    }
+  } catch (error) {
+    console.error("[TrailOS] booking automation failed", { bookingId, event, error });
+  }
+}

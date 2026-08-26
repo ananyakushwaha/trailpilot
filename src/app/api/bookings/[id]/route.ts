@@ -4,6 +4,7 @@ import { requireSession, requireRole, AuthError } from "@/lib/auth";
 import { handleApiError } from "@/lib/api-response";
 import { BOOKING_VIEW_ROLES, BOOKING_WRITE_ROLES } from "@/lib/roles";
 import { bookingInputSchema } from "@/lib/validation";
+import { triggerBookingAutomation } from "@/lib/notifications";
 
 export async function GET(
   _request: NextRequest,
@@ -71,6 +72,11 @@ export async function PATCH(
         ...(body.internalNotes !== undefined && { internalNotes: body.internalNotes || null }),
       },
     });
+
+    if (body.status && body.status !== existing.status) {
+      if (body.status === "CONFIRMED") await triggerBookingAutomation(id, "CONFIRMED");
+      if (body.status === "COMPLETED") await triggerBookingAutomation(id, "COMPLETED");
+    }
 
     return NextResponse.json({ booking });
   } catch (error) {

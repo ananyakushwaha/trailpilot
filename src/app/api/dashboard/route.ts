@@ -25,6 +25,7 @@ export async function GET() {
       totalCustomers,
       recentLeads,
       confirmedBookingsThisMonth,
+      activeTrips: activeBookings.length,
       upcomingTrips,
       activeBookings,
       revenueThisMonthPayments,

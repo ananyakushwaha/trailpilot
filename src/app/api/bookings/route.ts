@@ -5,6 +5,7 @@ import { requireSession, requireRole } from "@/lib/auth";
 import { handleApiError } from "@/lib/api-response";
 import { BOOKING_VIEW_ROLES, BOOKING_WRITE_ROLES } from "@/lib/roles";
 import { bookingInputSchema } from "@/lib/validation";
+import { triggerBookingAutomation } from "@/lib/notifications";
 
 const DEFAULT_CHECKLIST_ITEMS = [
   "Hotel confirmation",
@@ -91,6 +92,10 @@ export async function POST(request: NextRequest) {
       },
       include: { checklist: true },
     });
+
+    if (booking.status === "CONFIRMED") {
+      await triggerBookingAutomation(booking.id, "CONFIRMED");
+    }
 
     return NextResponse.json({ booking }, { status: 201 });
   } catch (error) {
