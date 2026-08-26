@@ -16,16 +16,18 @@ type NavItem = {
   href: string;
   label: string;
   roles?: UserRole[];
+  premium?: boolean;
 };
 
 const NAV_ITEMS: NavItem[] = [
-  { href: "/dashboard", label: "Dashboard" },
-  { href: "/leads", label: "Leads" },
-  { href: "/customers", label: "Customers" },
+  { href: "/dashboard", label: "Dashboard", roles: ["SUPER_ADMIN", "AGENCY_OWNER", "SALES_EXECUTIVE", "OPERATIONS_EXECUTIVE", "HOTEL_PARTNER"] },
+  { href: "/leads", label: "Leads", roles: ["SUPER_ADMIN", "AGENCY_OWNER", "SALES_EXECUTIVE"] },
+  { href: "/customers", label: "Customers", roles: ["SUPER_ADMIN", "AGENCY_OWNER", "SALES_EXECUTIVE", "OPERATIONS_EXECUTIVE"] },
   { href: "/itineraries", label: "Itineraries", roles: ITINERARY_ROLES },
   { href: "/bookings", label: "Bookings", roles: BOOKING_VIEW_ROLES },
   { href: "/vendors", label: "Vendors", roles: OPERATIONS_ROLES },
-  { href: "/analytics", label: "Analytics", roles: BOOKING_VIEW_ROLES },
+  { href: "/analytics", label: "Analytics", roles: BOOKING_VIEW_ROLES, premium: true },
+  { href: "/upgrade", label: "Upgrade to Premium" },
   { href: "/agency", label: "Agency Settings", roles: AGENCY_ADMIN_ROLES },
 ];
 
@@ -55,9 +57,9 @@ export function AppShell({
 
   return (
     <div className="flex min-h-screen">
-      <aside className="hidden w-64 shrink-0 flex-col border-r border-slate-200 bg-white sm:flex">
-        <div className="flex h-16 items-center border-b border-slate-200 px-6">
-          <span className="text-lg font-semibold tracking-tight text-indigo-600">TrailOS</span>
+      <aside className="hidden w-64 shrink-0 flex-col border-r border-slate-800 bg-[#071a33] text-white sm:flex">
+        <div className="flex h-16 items-center border-b border-slate-800 px-6">
+          <span className="text-lg font-semibold tracking-tight text-white">✈ TrailOS<span className="text-blue-400">™</span></span>
         </div>
         <nav className="flex-1 space-y-1 px-3 py-4">
           {visibleItems.map((item) => {
@@ -68,22 +70,22 @@ export function AppShell({
                 href={item.href}
                 className={`block rounded-md px-3 py-2 text-sm font-medium transition-colors ${
                   active
-                    ? "bg-indigo-50 text-indigo-700"
-                    : "text-slate-600 hover:bg-slate-50 hover:text-slate-900"
+                    ? "bg-blue-600 text-white shadow-lg shadow-blue-950/30"
+                    : "text-slate-300 hover:bg-blue-950/70 hover:text-white"
                 }`}
               >
-                {item.label}
+                <span className="flex items-center justify-between gap-2">{item.label}{item.premium && <span className="rounded bg-amber-400/20 px-1.5 py-0.5 text-[9px] font-bold uppercase text-amber-300">Pro</span>}</span>
               </Link>
             );
           })}
         </nav>
-        <div className="border-t border-slate-200 p-4">
-          <p className="truncate text-sm font-medium text-slate-900">{user.name}</p>
-          <p className="truncate text-xs text-slate-500">{ROLE_LABELS[user.role]}</p>
+        <div className="border-t border-slate-800 p-4">
+          <p className="truncate text-sm font-medium text-white">{user.name}</p>
+          <p className="truncate text-xs text-slate-400">{ROLE_LABELS[user.role]}</p>
           <button
             onClick={handleLogout}
             disabled={loggingOut}
-            className="mt-3 text-xs font-medium text-slate-500 hover:text-red-600"
+            className="mt-3 text-xs font-medium text-slate-400 hover:text-red-300"
           >
             {loggingOut ? "Logging out..." : "Log out"}
           </button>
@@ -104,11 +106,11 @@ export function AppShell({
                 pathname.startsWith(item.href) ? "text-indigo-700" : "text-slate-500"
               }`}
             >
-              {item.label}
+                {item.label}{item.premium && <span className="ml-1 text-[9px] text-amber-600">PRO</span>}
             </Link>
           ))}
         </nav>
-        <main className="flex-1 bg-slate-50 px-4 py-6 sm:px-8">{children}</main>
+        <main className="flex-1 bg-slate-50 px-4 py-6 sm:px-8"><div className="min-h-[calc(100vh-8rem)]">{children}</div><footer className="mt-10 border-t border-slate-200 py-4 text-center text-xs text-slate-400">Powered by <span className="font-semibold text-slate-500">TrailPilot™</span></footer></main>
       </div>
     </div>
   );

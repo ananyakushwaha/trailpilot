@@ -8,6 +8,7 @@ import { VendorCategoryBadge } from "@/components/VendorBadges";
 import { SendMessageButtons } from "@/components/SendMessageButtons";
 import { apiFetch, ApiError } from "@/lib/api-client";
 import { formatDate } from "@/lib/format";
+import { PrintButton } from "@/components/PrintButton";
 
 const fetcher = (url: string) => fetch(url).then((res) => res.json());
 
@@ -204,6 +205,7 @@ export default function BookingDetailPage({ params }: { params: Promise<{ id: st
         <a href={`/api/bookings/${id}/invoice`} target="_blank" rel="noopener noreferrer" className="text-indigo-600 hover:text-indigo-500">
           Download invoice PDF
         </a>
+        <PrintButton />
       </div>
 
       <div className="card">

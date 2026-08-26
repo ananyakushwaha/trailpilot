@@ -20,6 +20,11 @@ enum UserRole {
   CUSTOMER_PORTAL_USER
 }
 
+enum SubscriptionPlan {
+  FREE
+  PREMIUM
+}
+
 enum LeadStatus {
   NEW
   CONTACTED
@@ -100,6 +105,11 @@ model Agency {
   city            String?
   logoUrl         String?
   googleReviewUrl String?
+  whatsappAccessTokenEnc String?
+  whatsappPhoneNumberId String?
+  emailApiKeyEnc String?
+  emailFrom String?
+  plan            SubscriptionPlan @default(FREE)
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 

@@ -13,6 +13,10 @@ type Agency = {
   address: string | null;
   city: string | null;
   googleReviewUrl: string | null;
+  whatsappPhoneNumberId?: string | null;
+  emailFrom?: string | null;
+  whatsappConnected?: boolean;
+  emailConnected?: boolean;
 };
 
 type Member = { id: string; name: string; email: string; role: string };
@@ -20,7 +24,7 @@ type Member = { id: string; name: string; email: string; role: string };
 const fetcher = (url: string) => fetch(url).then((res) => res.json());
 
 export default function AgencySettingsPage() {
-  const { data: meData } = useSWR<{ user: { role: string } }>("/api/auth/me", fetcher);
+  const { data: meData } = useSWR<{ user: { name: string; email: string; role: string } }>("/api/auth/me", fetcher);
   const { data: agencyData, mutate: mutateAgency } = useSWR<{ agency: Agency }>(
     "/api/agency",
     fetcher,
@@ -41,9 +45,13 @@ export default function AgencySettingsPage() {
         <p className="text-sm text-slate-500">Your agency profile and team.</p>
       </div>
 
+      {meData?.user && <ProfileForm user={meData.user} onSaved={() => window.location.reload()} />}
+
       {agencyData && (
         <AgencyProfileForm agency={agencyData.agency} readOnly={!isAdmin} onSaved={mutateAgency} />
       )}
+
+      {agencyData && isAdmin && <IntegrationSettingsForm agency={agencyData.agency} onSaved={mutateAgency} />}
 
       <div className="card space-y-4">
         <h2 className="text-sm font-semibold text-slate-900">Team members</h2>
@@ -67,6 +75,27 @@ export default function AgencySettingsPage() {
       {isAdmin && <MessageTemplatesEditor />}
     </div>
   );
+}
+
+function IntegrationSettingsForm({ agency, onSaved }: { agency: Agency; onSaved: () => void }) {
+  const [form, setForm] = useState({ whatsappAccessToken: "", whatsappPhoneNumberId: agency.whatsappPhoneNumberId ?? "", emailApiKey: "", emailFrom: agency.emailFrom ?? "" });
+  const [message, setMessage] = useState<string | null>(null); const [error, setError] = useState<string | null>(null); const [saving, setSaving] = useState(false);
+  async function handleSubmit(e: React.FormEvent) { e.preventDefault(); setSaving(true); setError(null); setMessage(null); try { await apiFetch("/api/agency", { method: "PATCH", body: JSON.stringify(form) }); setMessage("Business integrations saved securely."); onSaved(); } catch (err) { setError(err instanceof ApiError ? err.message : "Could not save integrations"); } finally { setSaving(false); } }
+  return <form onSubmit={handleSubmit} className="card space-y-4"><div><h2 className="text-sm font-semibold text-slate-900">Business integrations</h2><p className="text-xs text-slate-500">Each agency owner can connect their own WhatsApp Business number and email sender. Tokens are encrypted and never displayed after saving.</p></div><div className="grid gap-4 sm:grid-cols-2"><label><span className="mb-1 block text-sm font-medium text-slate-700">WhatsApp access token</span><input type="password" className="input" value={form.whatsappAccessToken} onChange={(e) => setForm({ ...form, whatsappAccessToken: e.target.value })} placeholder={agency.whatsappConnected ? "Saved - enter only to replace" : "Paste Meta token"} /></label><label><span className="mb-1 block text-sm font-medium text-slate-700">WhatsApp phone number ID</span><input className="input" value={form.whatsappPhoneNumberId} onChange={(e) => setForm({ ...form, whatsappPhoneNumberId: e.target.value })} placeholder="From Meta WhatsApp API Setup" /></label><label><span className="mb-1 block text-sm font-medium text-slate-700">Resend API key</span><input type="password" className="input" value={form.emailApiKey} onChange={(e) => setForm({ ...form, emailApiKey: e.target.value })} placeholder={agency.emailConnected ? "Saved - enter only to replace" : "Paste Resend key"} /></label><label><span className="mb-1 block text-sm font-medium text-slate-700">Sender email</span><input type="text" className="input" value={form.emailFrom} onChange={(e) => setForm({ ...form, emailFrom: e.target.value })} placeholder="Travel Team <hello@yourdomain.com>" /></label></div>{error && <p className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>}{message && <p className="rounded-md bg-emerald-50 px-3 py-2 text-sm text-emerald-700">{message}</p>}<button type="submit" disabled={saving} className="btn-primary">{saving ? "Saving..." : "Save business integrations"}</button></form>;
+}
+
+function ProfileForm({ user, onSaved }: { user: { name: string; email: string }; onSaved: () => void }) {
+  const [form, setForm] = useState({ name: user.name, email: user.email, currentPassword: "", newPassword: "" });
+  const [message, setMessage] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault(); setSaving(true); setError(null); setMessage(null);
+    try { await apiFetch("/api/profile", { method: "PATCH", body: JSON.stringify(form) }); setMessage("Profile updated."); setTimeout(onSaved, 600); }
+    catch (err) { setError(err instanceof ApiError ? err.message : "Could not update profile"); }
+    finally { setSaving(false); }
+  }
+  return <form onSubmit={handleSubmit} className="card space-y-4"><div><h2 className="text-sm font-semibold text-slate-900">Owner profile</h2><p className="text-xs text-slate-500">Update the name and login email shown to your team.</p></div><div className="grid gap-4 sm:grid-cols-2"><label><span className="mb-1 block text-sm font-medium text-slate-700">Full name</span><input required className="input" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} /></label><label><span className="mb-1 block text-sm font-medium text-slate-700">Login email</span><input required type="email" className="input" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} /></label><label><span className="mb-1 block text-sm font-medium text-slate-700">Current password</span><input type="password" className="input" value={form.currentPassword} onChange={(e) => setForm({ ...form, currentPassword: e.target.value })} /></label><label><span className="mb-1 block text-sm font-medium text-slate-700">New password (optional)</span><input type="password" minLength={8} className="input" value={form.newPassword} onChange={(e) => setForm({ ...form, newPassword: e.target.value })} /></label></div>{error && <p className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>}{message && <p className="rounded-md bg-emerald-50 px-3 py-2 text-sm text-emerald-700">{message}</p>}<button type="submit" disabled={saving} className="btn-secondary">{saving ? "Saving..." : "Save owner profile"}</button></form>;
 }
 
 function AgencyProfileForm({

@@ -8,6 +8,30 @@ export async function GET() {
     const session = await requireSession();
     const agencyId = session.agencyId;
 
+    if (session.role === "HOTEL_PARTNER") {
+      const hotelBookings = await prisma.booking.findMany({
+        where: {
+          agencyId,
+          startDate: { gte: new Date() },
+          status: { notIn: ["CANCELLED", "REFUNDED"] },
+          vendors: { some: { vendor: { category: "HOTEL" } } },
+        },
+        orderBy: { startDate: "asc" },
+        take: 12,
+        select: {
+          id: true, destination: true, startDate: true, endDate: true, status: true,
+          customer: { select: { fullName: true, phone: true, email: true } },
+          vendors: { where: { vendor: { category: "HOTEL" } }, select: { vendor: { select: { name: true, phone: true } }, notes: true } },
+        },
+      });
+      return NextResponse.json({
+        mode: "hotel",
+        hotelArrivals: hotelBookings,
+        arrivalsToday: hotelBookings.filter((booking) => booking.startDate.toDateString() === new Date().toDateString()).length,
+        upcomingArrivals: hotelBookings.length,
+      });
+    }
+
     const now = new Date();
     const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
     const startOfToday = new Date();
@@ -74,6 +98,12 @@ export async function GET() {
       }),
     ]);
 
+    const leadSourceCounts = await prisma.lead.groupBy({
+      by: ["source"],
+      where: { agencyId },
+      _count: { _all: true },
+    });
+
     let paymentsPendingFromCustomers = 0;
     let vendorPaymentsPending = 0;
     for (const booking of activeBookings) {
@@ -89,6 +119,7 @@ export async function GET() {
     }
 
     return NextResponse.json({
+      mode: "agency",
       totalLeadsThisMonth,
       newLeadsToday,
       leadsPendingFollowUp,
@@ -110,6 +141,7 @@ export async function GET() {
         overallRating: f.overallRating,
         createdAt: f.createdAt,
       })),
+      leadSourceBreakdown: leadSourceCounts.map((item) => ({ source: item.source, count: item._count._all })),
     });
   } catch (error) {
     return handleApiError(error);

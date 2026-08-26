@@ -11,6 +11,7 @@ import {
 } from "@/components/ItineraryForm";
 import { SendMessageButtons } from "@/components/SendMessageButtons";
 import { apiFetch, ApiError } from "@/lib/api-client";
+import { PrintButton } from "@/components/PrintButton";
 
 const fetcher = (url: string) => fetch(url).then((res) => res.json());
 
@@ -67,6 +68,7 @@ export default function ItineraryDetailPage({ params }: { params: Promise<{ id: 
           <a href={`/api/itineraries/${id}/pdf`} target="_blank" rel="noopener noreferrer" className="btn-secondary">
             Download PDF
           </a>
+          <PrintButton />
           <button onClick={handleDuplicate} className="btn-secondary">
             Duplicate
           </button>

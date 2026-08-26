@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
-import { requireSession, requireRole } from "@/lib/auth";
+import { requireSession, requireRole, requirePremium } from "@/lib/auth";
 import { handleApiError } from "@/lib/api-response";
 import { BOOKING_VIEW_ROLES } from "@/lib/roles";
 import { TEMPLATE_KEYS } from "@/lib/templates";
@@ -22,6 +22,7 @@ export async function POST(request: NextRequest) {
     requireRole(session, BOOKING_VIEW_ROLES);
 
     const body = sendSchema.parse(await request.json());
+    if (body.channel === "WHATSAPP") await requirePremium(session);
 
     if (body.bookingId) {
       const booking = await prisma.booking.findFirst({

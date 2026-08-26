@@ -185,7 +185,7 @@ export function ItineraryForm({
           : "No AI key configured — generated a starter template. Review and edit every day before sending.",
       );
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Could not generate a draft");
+      setError(err instanceof ApiError && err.status === 402 ? "AI itinerary drafting is a Premium feature. Ask the owner to upgrade." : err instanceof ApiError ? err.message : "Could not generate a draft");
     } finally {
       setGenerating(false);
     }

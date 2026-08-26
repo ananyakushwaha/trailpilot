@@ -19,6 +19,7 @@ type AnalyticsData = {
     whatCanImprove: string | null;
     createdAt: string;
   }[];
+  leadSourceBreakdown: { source: string; count: number }[];
 };
 
 const fetcher = (url: string) => fetch(url).then((res) => res.json());
@@ -76,6 +77,10 @@ export default function AnalyticsPage() {
           </div>
 
           <div className="grid gap-4 sm:grid-cols-2">
+            <div className="card sm:col-span-2">
+              <h2 className="mb-3 text-sm font-semibold text-slate-900">Where leads come from</h2>
+              {data.leadSourceBreakdown.length === 0 ? <p className="text-sm text-slate-500">No lead sources recorded yet.</p> : <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">{data.leadSourceBreakdown.map((item) => <div key={item.source} className="flex items-center justify-between rounded-lg bg-slate-50 px-4 py-3"><span className="text-sm font-medium text-slate-700">{item.source.replaceAll("_", " ")}</span><span className="badge bg-indigo-50 text-indigo-700">{item.count} leads</span></div>)}</div>}
+            </div>
             <div className="card">
               <h2 className="mb-3 text-sm font-semibold text-slate-900">Vendor-wise ratings</h2>
               {data.vendorWiseRatings.length === 0 && (

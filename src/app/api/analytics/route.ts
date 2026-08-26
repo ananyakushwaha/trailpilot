@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { requireSession } from "@/lib/auth";
+import { requireSession, requirePremium } from "@/lib/auth";
 import { handleApiError } from "@/lib/api-response";
 
 const STOPWORDS = new Set([
@@ -46,9 +46,10 @@ const VENDOR_RATING_FIELD: Record<string, "hotelRating" | "driverRating" | "guid
 export async function GET() {
   try {
     const session = await requireSession();
+    await requirePremium(session);
     const agencyId = session.agencyId;
 
-    const [feedbackList, payments, bookingVendors, lowFeedback] = await Promise.all([
+    const [feedbackList, payments, bookingVendors, lowFeedback, leads] = await Promise.all([
       prisma.feedback.findMany({ where: { agencyId } }),
       prisma.payment.findMany({
         where: { agencyId, direction: "CUSTOMER_IN" },
@@ -64,10 +65,16 @@ export async function GET() {
         take: 5,
         include: { customer: { select: { fullName: true } }, booking: { select: { destination: true } } },
       }),
+      prisma.lead.findMany({ where: { agencyId }, select: { source: true } }),
     ]);
 
     const averageOverallRating = average(feedbackList.map((f) => f.overallRating));
     const reviewsRequestedCount = feedbackList.filter((f) => f.reviewRequested).length;
+    const leadSourceCounts = new Map<string, number>();
+    for (const lead of leads) leadSourceCounts.set(lead.source, (leadSourceCounts.get(lead.source) ?? 0) + 1);
+    const leadSourceBreakdown = Array.from(leadSourceCounts.entries())
+      .map(([source, count]) => ({ source, count }))
+      .sort((a, b) => b.count - a.count);
 
     const complaintKeywords = extractKeywords(
       feedbackList.map((f) => f.whatCanImprove).filter((v): v is string => Boolean(v)),
@@ -122,6 +129,7 @@ export async function GET() {
         whatCanImprove: f.whatCanImprove,
         createdAt: f.createdAt,
       })),
+      leadSourceBreakdown,
     });
   } catch (error) {
     return handleApiError(error);

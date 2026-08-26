@@ -51,3 +51,9 @@ body {
     @apply inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium;
   }
 }
+
+@media print {
+  .print-hide, aside, header, nav { display: none !important; }
+  main { background: white !important; padding: 0 !important; }
+  .card { box-shadow: none !important; break-inside: avoid; }
+}
