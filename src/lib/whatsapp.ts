@@ -1,5 +1,7 @@
-export function isWhatsAppConfigured() {
-  return Boolean(process.env.WHATSAPP_ACCESS_TOKEN && process.env.WHATSAPP_PHONE_NUMBER_ID);
+export type WhatsAppConfig = { accessToken?: string | null; phoneNumberId?: string | null };
+
+export function isWhatsAppConfigured(config?: WhatsAppConfig) {
+  return Boolean((config?.accessToken ?? process.env.WHATSAPP_ACCESS_TOKEN) && (config?.phoneNumberId ?? process.env.WHATSAPP_PHONE_NUMBER_ID));
 }
 
 export type SendResult = { sent: boolean; error?: string };
@@ -7,9 +9,9 @@ export type SendResult = { sent: boolean; error?: string };
 // Sends a free-form WhatsApp text message via the Meta Cloud API. Falls back
 // to a no-op (caller logs it) when credentials aren't configured, so the
 // notification engine works end-to-end without a live WhatsApp Business account.
-export async function sendWhatsAppMessage(to: string, body: string): Promise<SendResult> {
-  const token = process.env.WHATSAPP_ACCESS_TOKEN;
-  const phoneNumberId = process.env.WHATSAPP_PHONE_NUMBER_ID;
+export async function sendWhatsAppMessage(to: string, body: string, config?: WhatsAppConfig): Promise<SendResult> {
+  const token = config?.accessToken ?? process.env.WHATSAPP_ACCESS_TOKEN;
+  const phoneNumberId = config?.phoneNumberId ?? process.env.WHATSAPP_PHONE_NUMBER_ID;
 
   if (!token || !phoneNumberId) {
     return { sent: false, error: "WhatsApp is not configured" };
